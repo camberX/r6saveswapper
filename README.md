@@ -1,3 +1,4 @@
+
 # R6 Save Swapper
 
 Desktop app for swapping Rainbow Six Siege save files. Finds whichever profile you last used and lets you overwrite its saves with ones from a folder or another local account.
@@ -23,3 +24,6 @@ npm run build
 ```
 
 exe ends up in `portable/`.
+
+# Screenshot
+<img width="834" height="648" alt="Screenshot 2026-08-18 173311" src="https://github.com/user-attachments/assets/54e160cb-0b9a-4bce-9d6f-61c03fc37e38" />
