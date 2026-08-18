@@ -1,0 +1,59 @@
+{
+  "name": "r6-save-swapper",
+  "version": "1.0.0",
+  "description": "R6 save swapper",
+  "main": "dist/main.js",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "dev": "tsc && electron .",
+    "start": "electron .",
+    "build": "tsc && electron-builder --win portable && node scripts/pack-portable.js"
+  },
+  "dependencies": {
+    "fs-extra": "^11.4.0"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20.9.0",
+    "electron": "^33.3.0",
+    "electron-builder": "^24.13.3",
+    "rcedit": "^5.0.2",
+    "typescript": "^5.4.5"
+  },
+  "build": {
+    "appId": "com.r6saveswapper.app",
+    "productName": "R6 Save Swapper",
+    "executableName": "R6SaveSwapper",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "renderer/**/*",
+      "assets/icon.ico",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "assets/icon.ico",
+        "to": "icon.ico"
+      }
+    ],
+    "icon": "assets/icon.ico",
+    "win": {
+      "target": "portable",
+      "icon": "assets/icon.ico",
+      "signAndEditExecutable": false,
+      "artifactName": "R6SaveSwapper.exe"
+    },
+    "portable": {
+      "artifactName": "R6SaveSwapper.exe",
+      "requestExecutionLevel": "user"
+    },
+    "afterPack": "scripts/afterPack.js",
+    "asar": true,
+    "compression": "maximum",
+    "electronLanguages": ["en-US"]
+  }
+}

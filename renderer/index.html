@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <title>R6 Save Swapper</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="modal-open">
+    <div class="shell">
+      <div class="window-controls">
+        <span id="game-badge" class="badge">Checking...</span>
+        <button id="refresh-btn" class="btn ghost" type="button">Refresh</button>
+        <button id="min-btn" class="win-btn" type="button" title="Minimize">─</button>
+        <button id="max-btn" class="win-btn" type="button" title="Maximize">□</button>
+        <button id="close-btn" class="win-btn close" type="button" title="Close">✕</button>
+      </div>
+      <div class="app">
+        <header class="topbar">
+          <div>
+            <h1>Save Swapper</h1>
+            <p class="credits">by @evilkitten911 on Discord</p>
+          </div>
+        </header>
+
+        <div class="profile-bar">
+          <div id="profile-empty" class="empty hidden">No R6 profile found. Launch Siege once.</div>
+          <div id="profile-body" class="row-actions">
+            <div id="profile-dropdown" class="dropdown hidden">
+              <button id="profile-toggle" class="dropdown-toggle" type="button">
+                <strong id="profile-toggle-label">Unknown</strong>
+                <span class="chevron">▾</span>
+              </button>
+              <div id="profile-menu" class="dropdown-menu hidden"></div>
+            </div>
+            <strong id="profile-name">Unknown</strong>
+            <button id="copy-id-btn" class="btn ghost" type="button">Copy ID</button>
+            <span id="folder-label" class="muted-label"></span>
+            <button id="open-saves-btn" class="btn ghost" type="button">Open</button>
+          </div>
+        </div>
+
+        <section class="layout">
+          <section class="card">
+            <div class="card-head">
+              <h2>From files</h2>
+            </div>
+            <button id="pick-files-btn" class="dropzone" type="button">
+              <strong>Click to choose files</strong>
+              <span>Select the .save files to copy onto this profile</span>
+            </button>
+            <button id="pick-folder-btn" class="dropzone slim" type="button">
+              <strong>Or choose a folder</strong>
+            </button>
+            <div id="replacement-files" class="file-list hidden"></div>
+            <div class="replace-actions">
+              <button id="backup-btn" class="btn ghost" type="button">Backup</button>
+              <button id="replace-btn" class="btn primary" type="button" disabled>Replace</button>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-head">
+              <h2>From profile</h2>
+            </div>
+            <div id="source-empty" class="empty hidden">No other profiles found.</div>
+            <div id="source-body">
+              <div id="source-profiles" class="profile-list"></div>
+              <div class="replace-actions">
+                <button id="copy-profile-btn" class="btn primary" type="button" disabled>Copy here</button>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section id="backups-card" class="card backups-card hidden">
+          <div class="card-head">
+            <h2>Backups</h2>
+          </div>
+          <div id="backups" class="backup-list"></div>
+        </section>
+
+        <div id="toast" class="toast hidden"></div>
+      </div>
+
+      <div id="cloud-sync-modal" class="modal-overlay">
+        <div class="modal">
+          <p class="eyebrow">Before you swap</p>
+          <h2>Turn off cloud sync in Ubisoft Connect.</h2>
+          <p>Settings → General → <strong>Enable cloud save synchronization for supported games</strong>.</p>
+          <p>If prompted, pick <strong>Local save</strong>. Swapped saves need an <strong>Unlock All</strong>.</p>
+          <div class="modal-actions">
+            <button id="cloud-sync-ok" class="btn primary" type="button">Got it</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="confirm-modal" class="modal-overlay hidden">
+        <div class="modal">
+          <p class="eyebrow" id="confirm-eyebrow">Confirm</p>
+          <h2 id="confirm-title"></h2>
+          <p id="confirm-body"></p>
+          <div class="modal-actions">
+            <button id="confirm-cancel" class="btn ghost" type="button">Cancel</button>
+            <button id="confirm-ok" class="btn primary" type="button">OK</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="./app.js"></script>
+  </body>
+</html>
