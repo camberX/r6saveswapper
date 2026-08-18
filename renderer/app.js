@@ -35,12 +35,358 @@ const els = {
   confirmOk: document.getElementById('confirm-ok'),
   minBtn: document.getElementById('min-btn'),
   maxBtn: document.getElementById('max-btn'),
-  closeBtn: document.getElementById('close-btn')
+  closeBtn: document.getElementById('close-btn'),
+  settingsBtn: document.getElementById('settings-btn'),
+  settingsPanel: document.getElementById('settings-panel'),
+  settingsDismiss: document.getElementById('settings-dismiss'),
+  settingsReset: document.getElementById('settings-reset'),
+  settingsDone: document.getElementById('settings-done'),
+  colorPop: document.getElementById('color-pop'),
+  svMap: document.getElementById('sv-map'),
+  svThumb: document.getElementById('sv-thumb'),
+  hueSlider: document.getElementById('hue-slider'),
+  hueThumb: document.getElementById('hue-thumb'),
+  hexEdit: document.getElementById('hex-edit')
 }
 
 let status = null
 let selectedFiles = []
 let sourceProfileId = ''
+
+const THEMES = ['mono', 'graphite', 'light', 'orange']
+const THEME_ALIASES = { ember: 'orange', abyss: 'graphite' }
+const THEME_KEYS = ['background', 'panels', 'controls', 'borders', 'text', 'muted', 'accent', 'accentText']
+const THEME_VARS = [
+  '--shell', '--bg', '--drop-bg', '--card', '--modal', '--raised', '--menu',
+  '--line', '--drop-border', '--text', '--muted', '--accent', '--accent-text',
+  '--hover', '--close-bg', '--close-text', '--primary-hover', '--active-meta', '--overlay'
+]
+const THEME_FROM_VAR = {
+  background: '--shell',
+  panels: '--card',
+  controls: '--raised',
+  borders: '--line',
+  text: '--text',
+  muted: '--muted',
+  accent: '--accent',
+  accentText: '--accent-text'
+}
+
+function parseColor(value) {
+  if (!value) return null
+  const raw = String(value).trim()
+  const rgb = raw.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i)
+  if (rgb) return { r: +rgb[1], g: +rgb[2], b: +rgb[3] }
+  let hex = raw[0] === '#' ? raw : `#${raw}`
+  if (/^#([0-9a-f]{3})$/i.test(hex)) {
+    const h = hex.slice(1)
+    return { r: parseInt(h[0] + h[0], 16), g: parseInt(h[1] + h[1], 16), b: parseInt(h[2] + h[2], 16) }
+  }
+  if (/^#([0-9a-f]{6})$/i.test(hex)) {
+    return { r: parseInt(hex.slice(1, 3), 16), g: parseInt(hex.slice(3, 5), 16), b: parseInt(hex.slice(5, 7), 16) }
+  }
+  return null
+}
+
+function toHex(color) {
+  const h = (n) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0')
+  return `#${h(color.r)}${h(color.g)}${h(color.b)}`
+}
+
+function mix(a, b, t) {
+  const from = typeof a === 'string' ? parseColor(a) : a
+  const to = typeof b === 'string' ? parseColor(b) : b
+  if (!from || !to) return '#000000'
+  return toHex({
+    r: Math.round(from.r + (to.r - from.r) * t),
+    g: Math.round(from.g + (to.g - from.g) * t),
+    b: Math.round(from.b + (to.b - from.b) * t)
+  })
+}
+
+function luminance(color) {
+  const c = typeof color === 'string' ? parseColor(color) : color
+  if (!c) return 0
+  return (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) / 255
+}
+
+function loadThemeColors() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem('r6-theme-colors') || '{}')
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function currentThemeName() {
+  return document.documentElement.dataset.theme || 'graphite'
+}
+
+function clearThemeVars() {
+  THEME_VARS.forEach((name) => document.documentElement.style.removeProperty(name))
+}
+
+function applyThemeColors(colors) {
+  const c = {}
+  for (const key of THEME_KEYS) {
+    const parsed = parseColor(colors?.[key])
+    if (parsed) c[key] = toHex(parsed)
+  }
+  if (THEME_KEYS.some((key) => !c[key])) return false
+
+  const hover = mix(c.controls, c.text, 0.12)
+  const dropBg = mix(c.background, '#000000', 0.12)
+  const dropBorder = mix(c.borders, c.text, 0.22)
+  const primaryHover = luminance(c.accent) > 0.55 ? mix(c.accent, '#000000', 0.12) : mix(c.accent, '#ffffff', 0.14)
+  const overlay = luminance(c.background) > 0.5 ? 'rgba(0, 0, 0, 0.28)' : 'rgba(0, 0, 0, 0.5)'
+  const root = document.documentElement.style
+  root.setProperty('--shell', c.background)
+  root.setProperty('--bg', c.background)
+  root.setProperty('--drop-bg', dropBg)
+  root.setProperty('--card', c.panels)
+  root.setProperty('--modal', c.panels)
+  root.setProperty('--raised', c.controls)
+  root.setProperty('--menu', c.controls)
+  root.setProperty('--line', c.borders)
+  root.setProperty('--drop-border', dropBorder)
+  root.setProperty('--text', c.text)
+  root.setProperty('--muted', c.muted)
+  root.setProperty('--accent', c.accent)
+  root.setProperty('--accent-text', c.accentText)
+  root.setProperty('--hover', hover)
+  root.setProperty('--close-bg', c.accent)
+  root.setProperty('--close-text', c.accentText)
+  root.setProperty('--primary-hover', primaryHover)
+  root.setProperty('--active-meta', mix(c.accentText, c.accent, 0.28))
+  root.setProperty('--overlay', overlay)
+  return true
+}
+
+function computedThemeColors() {
+  const styles = getComputedStyle(document.documentElement)
+  const colors = {}
+  for (const [key, name] of Object.entries(THEME_FROM_VAR)) {
+    const parsed = parseColor(styles.getPropertyValue(name))
+    colors[key] = parsed ? toHex(parsed) : '#000000'
+  }
+  return colors
+}
+
+function rgbToHsv({ r, g, b }) {
+  r /= 255
+  g /= 255
+  b /= 255
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const d = max - min
+  let h = 0
+  if (d) {
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60
+    else if (max === g) h = ((b - r) / d + 2) * 60
+    else h = ((r - g) / d + 4) * 60
+  }
+  return { h, s: max ? d / max : 0, v: max }
+}
+
+function hsvToRgb(h, s, v) {
+  const c = v * s
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1))
+  const m = v - c
+  let r = 0
+  let g = 0
+  let b = 0
+  if (h < 60) { r = c; g = x }
+  else if (h < 120) { r = x; g = c }
+  else if (h < 180) { g = c; b = x }
+  else if (h < 240) { g = x; b = c }
+  else if (h < 300) { r = x; b = c }
+  else { r = c; b = x }
+  return {
+    r: Math.round((r + m) * 255),
+    g: Math.round((g + m) * 255),
+    b: Math.round((b + m) * 255)
+  }
+}
+
+function paintPicker(key, hex) {
+  const chip = els.settingsPanel.querySelector(`[data-key="${key}"]`)
+  if (!chip) return
+  chip.dataset.hex = hex
+  const label = chip.querySelector('.hex-value')
+  if (label) label.textContent = hex
+  chip.style.setProperty('--swatch', hex)
+  chip.style.setProperty('--swatch-text', luminance(hex) > 0.55 ? '#1c1c1c' : '#ffffff')
+}
+
+function fillSettingsFields(colors) {
+  THEME_KEYS.forEach((key) => paintPicker(key, colors[key]))
+}
+
+function setTheme(name) {
+  const mapped = THEME_ALIASES[name] || name
+  const theme = THEMES.includes(mapped) ? mapped : 'graphite'
+  document.documentElement.dataset.theme = theme
+  localStorage.setItem('r6-theme', theme)
+  document.querySelectorAll('.theme-dot').forEach((dot) => {
+    dot.classList.toggle('active', dot.dataset.theme === theme)
+  })
+  clearThemeVars()
+  const saved = loadThemeColors()[theme]
+  if (saved) applyThemeColors(saved)
+  if (!els.settingsPanel.classList.contains('hidden')) fillSettingsFields(computedThemeColors())
+}
+
+function readSettingsColors() {
+  const colors = {}
+  THEME_KEYS.forEach((key) => {
+    colors[key] = els.settingsPanel.querySelector(`[data-key="${key}"]`)?.dataset.hex
+  })
+  return colors
+}
+
+function saveCurrentThemeColors(colors) {
+  if (!applyThemeColors(colors)) return
+  const all = loadThemeColors()
+  all[currentThemeName()] = {}
+  THEME_KEYS.forEach((key) => {
+    all[currentThemeName()][key] = toHex(parseColor(colors[key]))
+  })
+  localStorage.setItem('r6-theme-colors', JSON.stringify(all))
+}
+
+let pickerState = { key: null, h: 0, s: 0, v: 0 }
+
+function updatePickerUI() {
+  els.svMap.style.setProperty('--hue', String(pickerState.h))
+  els.svThumb.style.left = `${pickerState.s * 100}%`
+  els.svThumb.style.top = `${(1 - pickerState.v) * 100}%`
+  els.hueThumb.style.left = `${(pickerState.h / 360) * 100}%`
+}
+
+function commitPicker() {
+  if (!pickerState.key) return
+  const hex = toHex(hsvToRgb(pickerState.h, pickerState.s, pickerState.v))
+  paintPicker(pickerState.key, hex)
+  els.hexEdit.value = hex
+  saveCurrentThemeColors(readSettingsColors())
+  updatePickerUI()
+}
+
+function positionColorPop(chip) {
+  const shell = document.querySelector('.shell').getBoundingClientRect()
+  const panel = els.settingsPanel.getBoundingClientRect()
+  const chipRect = chip.getBoundingClientRect()
+  els.colorPop.style.right = `${Math.max(8, shell.right - panel.left + 8)}px`
+  let top = chipRect.top - shell.top
+  const popH = els.colorPop.offsetHeight || 210
+  if (top + popH > shell.height - 12) top = shell.height - popH - 12
+  if (top < 12) top = 12
+  els.colorPop.style.top = `${top}px`
+}
+
+function openColorPop(chip) {
+  const parsed = parseColor(chip.dataset.hex)
+  if (!parsed) return
+  const hsv = rgbToHsv(parsed)
+  pickerState = { key: chip.dataset.key, h: hsv.s === 0 ? pickerState.h : hsv.h, s: hsv.s, v: hsv.v }
+  els.hexEdit.value = toHex(parsed)
+  els.colorPop.classList.remove('hidden')
+  document.querySelectorAll('.color-chip').forEach((el) => el.classList.toggle('open', el === chip))
+  updatePickerUI()
+  positionColorPop(chip)
+}
+
+function closeColorPop() {
+  els.colorPop.classList.add('hidden')
+  pickerState.key = null
+  document.querySelectorAll('.color-chip').forEach((el) => el.classList.remove('open'))
+}
+
+function openSettings() {
+  fillSettingsFields(computedThemeColors())
+  els.settingsPanel.classList.remove('hidden')
+  els.settingsDismiss.classList.remove('hidden')
+  els.settingsBtn.classList.add('open')
+}
+
+function closeSettings() {
+  closeColorPop()
+  els.settingsPanel.classList.add('hidden')
+  els.settingsDismiss.classList.add('hidden')
+  els.settingsBtn.classList.remove('open')
+}
+
+function bindDrag(el, onMove) {
+  const move = (e) => onMove(e, el.getBoundingClientRect())
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault()
+    el.setPointerCapture(e.pointerId)
+    move(e)
+  })
+  el.addEventListener('pointermove', (e) => {
+    if (el.hasPointerCapture(e.pointerId)) move(e)
+  })
+}
+
+setTheme(localStorage.getItem('r6-theme') || 'graphite')
+
+document.getElementById('theme-picker').addEventListener('click', (e) => {
+  const dot = e.target.closest('[data-theme]')
+  if (dot) setTheme(dot.dataset.theme)
+})
+els.settingsBtn.addEventListener('click', (e) => {
+  e.stopPropagation()
+  if (els.settingsPanel.classList.contains('hidden')) openSettings()
+  else closeSettings()
+})
+els.settingsPanel.addEventListener('click', (e) => {
+  e.stopPropagation()
+  const chip = e.target.closest('.color-chip')
+  if (!chip) return
+  if (pickerState.key === chip.dataset.key && !els.colorPop.classList.contains('hidden')) {
+    closeColorPop()
+    return
+  }
+  openColorPop(chip)
+})
+els.colorPop.addEventListener('click', (e) => e.stopPropagation())
+els.settingsDismiss.addEventListener('pointerdown', (e) => {
+  e.preventDefault()
+  closeSettings()
+})
+bindDrag(els.svMap, (e, rect) => {
+  pickerState.s = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width))
+  pickerState.v = Math.min(1, Math.max(0, 1 - (e.clientY - rect.top) / rect.height))
+  commitPicker()
+})
+bindDrag(els.hueSlider, (e, rect) => {
+  pickerState.h = Math.min(359.99, Math.max(0, ((e.clientX - rect.left) / rect.width) * 360))
+  commitPicker()
+})
+els.hexEdit.addEventListener('input', () => {
+  const parsed = parseColor(els.hexEdit.value)
+  if (!parsed || !pickerState.key) return
+  const hsv = rgbToHsv(parsed)
+  pickerState.h = hsv.s === 0 ? pickerState.h : hsv.h
+  pickerState.s = hsv.s
+  pickerState.v = hsv.v
+  paintPicker(pickerState.key, toHex(parsed))
+  saveCurrentThemeColors(readSettingsColors())
+  updatePickerUI()
+})
+els.settingsReset.addEventListener('click', () => {
+  const all = loadThemeColors()
+  delete all[currentThemeName()]
+  localStorage.setItem('r6-theme-colors', JSON.stringify(all))
+  clearThemeVars()
+  fillSettingsFields(computedThemeColors())
+  if (pickerState.key) {
+    const chip = els.settingsPanel.querySelector(`[data-key="${pickerState.key}"]`)
+    if (chip) openColorPop(chip)
+  }
+})
+els.settingsDone.addEventListener('click', closeSettings)
 
 function formatBytes(n) {
   if (n < 1024) return `${n} B`
@@ -248,7 +594,10 @@ els.profileMenu.addEventListener('click', async (e) => {
   closeProfileMenu()
   renderStatus(await api.selectProfile(item.dataset.id))
 })
-document.addEventListener('click', closeProfileMenu)
+document.addEventListener('click', (e) => {
+  closeProfileMenu()
+  if (!e.target.closest('#settings-panel, #settings-btn, #theme-picker, #color-pop')) closeSettings()
+})
 els.refreshBtn.addEventListener('click', refresh)
 els.copyIdBtn.addEventListener('click', async () => {
   const id = status?.activeProfile?.profileId

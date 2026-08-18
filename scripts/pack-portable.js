@@ -22,7 +22,7 @@ if (fs.existsSync(unpacked)) {
 const sourceDir = path.join(destDir, 'source')
 fs.mkdirSync(sourceDir, { recursive: true })
 
-for (const name of ['package.json', 'package-lock.json', 'tsconfig.json', '.gitignore']) {
+for (const name of ['package.json', 'package-lock.json', 'tsconfig.json', '.gitignore', 'README.md']) {
   const from = path.join(root, name)
   if (fs.existsSync(from)) fs.copyFileSync(from, path.join(sourceDir, name))
 }
