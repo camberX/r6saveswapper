@@ -2,6 +2,8 @@
 
 Desktop app for swapping Rainbow Six Siege save files. Finds whichever profile you last used and lets you overwrite its saves with ones from a folder or another local account.
 
+If you run an Unlock All Community u are free to use this, I do not care, I made it for myself mainly.
+
 Credits: @evilkitten911 on Discord
 
 Windows only. `R6SaveSwapper.exe` is portable, just run it. No install.
